@@ -5,10 +5,12 @@ from typing import Any
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy import Table, func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import NoSuchTableError
 
 from . import db
+from . import messages as msg
 
 api_bp = Blueprint("api", __name__)
 
@@ -95,12 +97,26 @@ def create_customer():
     payload = {k: v for k, v in body.items() if k in allowed}
 
     if not payload.get("first_name") or not payload.get("last_name"):
-        return jsonify({"error": "first_name and last_name are required"}), 400
+        return jsonify(
+            {"error": msg.customer_error("first_name and last_name are required.")}
+        ), 400
 
-    result = db.session.execute(customers.insert().values(**payload).returning(customers))
-    db.session.commit()
-    created = result.mappings().first()
-    return jsonify({"item": _serialize_row(dict(created)) if created else payload}), 201
+    try:
+        result = db.session.execute(
+            customers.insert().values(**payload).returning(customers)
+        )
+        db.session.commit()
+        created = result.mappings().first()
+        item = _serialize_row(dict(created)) if created else payload
+        return jsonify({"item": item, "message": msg.CUSTOMER_SUCCESS}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(
+            {"error": msg.customer_error("duplicate or invalid data (database constraint).")}
+        ), 400
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error": msg.customer_error(str(exc))}), 500
 
 
 @api_bp.get("/reservations")
@@ -129,11 +145,28 @@ def create_reservation():
     payload = {k: v for k, v in body.items() if k in allowed}
 
     if "customer_id" not in payload:
-        return jsonify({"error": "customer_id is required"}), 400
+        return jsonify(
+            {"error": msg.reservation_error("customer_id is required.")}
+        ), 400
 
-    result = db.session.execute(reservation.insert().values(**payload).returning(reservation))
-    db.session.commit()
-
-    created = result.mappings().first()
-    return jsonify({"item": _serialize_row(dict(created)) if created else payload}), 201
+    try:
+        result = db.session.execute(
+            reservation.insert().values(**payload).returning(reservation)
+        )
+        db.session.commit()
+        created = result.mappings().first()
+        item = _serialize_row(dict(created)) if created else payload
+        return jsonify({"item": item, "message": msg.RESERVATION_SUCCESS}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(
+            {
+                "error": msg.reservation_error(
+                    "invalid or duplicate data (database constraint)."
+                )
+            }
+        ), 400
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error": msg.reservation_error(str(exc))}), 500
 

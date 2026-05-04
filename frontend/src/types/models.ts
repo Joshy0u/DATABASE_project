@@ -23,4 +23,4 @@ export type CustomerMode = "existing" | "new";
 export type ReservationSubmitNotice =
   | null
   | { kind: "success"; message: string }
-  | { kind: "error"; reason: string };
+  | { kind: "error"; message: string };

@@ -60,7 +60,7 @@ export function CreateReservationView({
     <section className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-5">
       {submitNotice?.kind === "error" ? (
         <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-          Reservation unsuccessful, with {submitNotice.reason}
+          {submitNotice.message}
         </div>
       ) : null}
       <div className="mb-3 text-sm font-semibold text-zinc-200">Create reservation</div>

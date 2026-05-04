@@ -69,46 +69,37 @@ export function useReservationDashboard() {
     setLoading(true);
     setError(null);
     try {
-      let customerId: number | undefined =
-        customerMode === "existing"
-          ? Number(formCustomerId || firstCustomerId)
-          : undefined;
-
+      let finalCustomerId: number;
       if (customerMode === "new") {
-        if (!newFirstName.trim() || !newLastName.trim()) {
-          throw new Error("New customer requires first and last name.");
-        }
         const createdCustomer = await createCustomer({
           first_name: newFirstName.trim(),
           last_name: newLastName.trim(),
           phone: newPhone.trim() || null,
           email: newEmail.trim() || null,
         });
-        customerId = createdCustomer.item.customer_id;
+        finalCustomerId = createdCustomer.item.customer_id;
+      } else {
+        finalCustomerId = Number(formCustomerId || firstCustomerId);
       }
 
-      if (!customerId) {
-        throw new Error("No customer selected.");
-      }
-
-      await createReservation({
+      const reservationResponse = await createReservation({
         reservation_date: formDate,
         reservation_time: `${formTime}:00`,
         party_size: formPartySize,
         status: formStatus,
-        customer_id: customerId,
+        customer_id: finalCustomerId,
       });
+
       await refresh();
       setSubmitNotice({
         kind: "success",
-        message:
-          "Reservation successful, you may return back to the home page",
+        message: reservationResponse.message ?? "",
       });
       setPage("dashboard");
     } catch (e) {
-      const reason =
+      const message =
         e instanceof Error ? e.message : "An unknown error occurred.";
-      setSubmitNotice({ kind: "error", reason });
+      setSubmitNotice({ kind: "error", message });
       setLoading(false);
     }
   }, [

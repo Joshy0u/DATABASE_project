@@ -15,7 +15,7 @@ export async function createCustomer(payload: {
   phone: string | null;
   email: string | null;
 }) {
-  return apiPost<{ item: Customer }>("/api/customers", payload);
+  return apiPost<{ item: Customer; message?: string }>("/api/customers", payload);
 }
 
 export async function createReservation(payload: {
@@ -25,5 +25,8 @@ export async function createReservation(payload: {
   status: string;
   customer_id: number;
 }) {
-  return apiPost("/api/reservations", payload);
+  return apiPost<{ item: Reservation; message?: string }>(
+    "/api/reservations",
+    payload,
+  );
 }

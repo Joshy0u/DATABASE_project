@@ -18,3 +18,9 @@ export type Reservation = {
 export type AppPage = "dashboard" | "create";
 
 export type CustomerMode = "existing" | "new";
+
+/** Result of the last reservation submit (success shown on dashboard; error on create page). */
+export type ReservationSubmitNotice =
+  | null
+  | { kind: "success"; message: string }
+  | { kind: "error"; reason: string };

@@ -54,9 +54,15 @@ export function CreateReservationView({
   newEmail,
   onNewEmailChange,
   onSubmit,
+  submitNotice = null,
 }: CreateReservationViewProps) {
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-5">
+      {submitNotice?.kind === "error" ? (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+          Reservation unsuccessful, with {submitNotice.reason}
+        </div>
+      ) : null}
       <div className="mb-3 text-sm font-semibold text-zinc-200">Create reservation</div>
       <div className="mb-3 flex gap-2">
         <Button

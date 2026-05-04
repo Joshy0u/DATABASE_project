@@ -5,7 +5,13 @@ import {
   fetchCustomers,
   fetchReservations,
 } from "../api/restaurantApi";
-import type { AppPage, Customer, CustomerMode, Reservation } from "../types/models";
+import type {
+  AppPage,
+  Customer,
+  CustomerMode,
+  Reservation,
+  ReservationSubmitNotice,
+} from "../types/models";
 
 export function useReservationDashboard() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -30,6 +36,13 @@ export function useReservationDashboard() {
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
 
+  const [submitNotice, setSubmitNotice] =
+    useState<ReservationSubmitNotice>(null);
+
+  const clearReservationSubmitNotice = useCallback(() => {
+    setSubmitNotice(null);
+  }, []);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -52,6 +65,7 @@ export function useReservationDashboard() {
   }, []);
 
   const createReservationFromForm = useCallback(async () => {
+    setSubmitNotice(null);
     setLoading(true);
     setError(null);
     try {
@@ -85,8 +99,16 @@ export function useReservationDashboard() {
         customer_id: customerId,
       });
       await refresh();
+      setSubmitNotice({
+        kind: "success",
+        message:
+          "Reservation successful, you may return back to the home page",
+      });
+      setPage("dashboard");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
+      const reason =
+        e instanceof Error ? e.message : "An unknown error occurred.";
+      setSubmitNotice({ kind: "error", reason });
       setLoading(false);
     }
   }, [
@@ -137,5 +159,7 @@ export function useReservationDashboard() {
     newEmail,
     setNewEmail,
     createReservationFromForm,
+    submitNotice,
+    clearReservationSubmitNotice,
   };
 }

@@ -2,11 +2,14 @@ import { motion } from "framer-motion";
 import { AppHeader } from "./components/layout/AppHeader";
 import { ErrorAlert } from "./components/ErrorAlert";
 import { DashboardView } from "./components/dashboard/DashboardView";
+import { ReservationSuccessBanner } from "./components/dashboard/ReservationSuccessBanner";
 import { CreateReservationView } from "./components/reservations/CreateReservationView";
 import { useReservationDashboard } from "./hooks/useReservationDashboard";
 
 export function App() {
   const h = useReservationDashboard();
+  const successMessage =
+    h.submitNotice?.kind === "success" ? h.submitNotice.message : null;
 
   return (
     <div className="min-h-screen">
@@ -14,7 +17,10 @@ export function App() {
         page={h.page}
         loading={h.loading}
         onRefresh={h.refresh}
-        onGoCreate={() => h.setPage("create")}
+        onGoCreate={() => {
+          h.clearReservationSubmitNotice();
+          h.setPage("create");
+        }}
         onGoDashboard={() => h.setPage("dashboard")}
       />
 
@@ -27,6 +33,10 @@ export function App() {
           className="space-y-6"
         >
           {h.error ? <ErrorAlert message={h.error} /> : null}
+
+          {h.page === "dashboard" && successMessage ? (
+            <ReservationSuccessBanner message={successMessage} />
+          ) : null}
 
           {h.page === "create" ? (
             <CreateReservationView
@@ -53,6 +63,7 @@ export function App() {
               newEmail={h.newEmail}
               onNewEmailChange={h.setNewEmail}
               onSubmit={h.createReservationFromForm}
+              submitNotice={h.submitNotice}
             />
           ) : (
             <DashboardView

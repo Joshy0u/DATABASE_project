@@ -18,7 +18,7 @@ From the project root:
 cd backend
 python -m venv .venv
 # Windows PowerShell
-.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate
 pip install -r requirements.txt
 ```
 

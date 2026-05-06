@@ -245,7 +245,6 @@ export function App() {
               newEmail={h.newEmail}
               onNewEmailChange={h.setNewEmail}
               onSubmit={h.createReservationFromForm}
-              submitNotice={h.submitNotice}
             />
           ) : (
             <>

@@ -170,3 +170,191 @@ def create_reservation():
         db.session.rollback()
         return jsonify({"error": msg.reservation_error(str(exc))}), 500
 
+
+@api_bp.get("/floorplan")
+def floorplan():
+    """Return every dining table grouped by DiningArea with live status info.
+
+    Status logic:
+        - "seated"   : a Visit exists with arrival_time set and departure_time IS NULL
+        - "reserved" : a ReservationTable entry links to a Reservation dated today-or-later
+                       that is NOT yet seated
+        - "empty"    : neither seated nor reserved
+    """
+    from collections import defaultdict
+    from datetime import date as _date, time as _time
+
+    try:
+        tbl_table = Table("Table", db.metadata, autoload_with=db.engine)
+        tbl_area = Table("diningarea", db.metadata, autoload_with=db.engine)
+        tbl_visit = Table("visit", db.metadata, autoload_with=db.engine)
+        tbl_res = Table("reservation", db.metadata, autoload_with=db.engine)
+        tbl_rt = Table("reservationtable", db.metadata, autoload_with=db.engine)
+        tbl_sa = Table("staffassignment", db.metadata, autoload_with=db.engine)
+        tbl_staff = Table("staff", db.metadata, autoload_with=db.engine)
+        tbl_cust = Table("customer", db.metadata, autoload_with=db.engine)
+    except Exception as e:
+        return jsonify({"error": f"Schema reflection failed: {e}"}), 500
+
+    # --- Fetch all areas --------------------------------------------------
+    areas_rows = db.session.execute(select(tbl_area)).mappings().all()
+    areas_map: dict[int, dict] = {
+        r["dining_area_id"]: {"area_id": r["dining_area_id"], "area_name": r["area_name"], "tables": []}
+        for r in areas_rows
+    }
+
+    # --- Fetch all tables -------------------------------------------------
+    tables_rows = db.session.execute(select(tbl_table)).mappings().all()
+
+    # --- Current visits (arrival_time set, departure_time NULL) ------------
+    active_visits_q = (
+        select(
+            tbl_visit.c.visit_id,
+            tbl_visit.c.arrival_time,
+            tbl_visit.c.reservation_id,
+        )
+        .where(tbl_visit.c.arrival_time.isnot(None))
+        .where(tbl_visit.c.departure_time.is_(None))
+    )
+    active_visits = db.session.execute(active_visits_q).mappings().all()
+
+    # Map reservation_id → visit row for active visits
+    visit_by_res: dict[int, dict] = {}
+    visit_by_id: dict[int, dict] = {}
+    for v in active_visits:
+        vd = dict(v)
+        if vd["reservation_id"] is not None:
+            visit_by_res[vd["reservation_id"]] = vd
+        visit_by_id[vd["visit_id"]] = vd
+
+    # --- ReservationTable mapping (table_id → list of reservation_ids) ----
+    rt_rows = db.session.execute(select(tbl_rt)).mappings().all()
+    rt_by_table: dict[int, list[int]] = defaultdict(list)
+    rt_by_res: dict[int, int] = {}  # reservation_id → table_id
+    for rt in rt_rows:
+        rt_by_table[rt["table_id"]].append(rt["reservation_id"])
+        rt_by_res[rt["reservation_id"]] = rt["table_id"]
+
+    # --- Reservations (today or future, non-cancelled) --------------------
+    today = _date.today()
+    upcoming_res_q = (
+        select(tbl_res)
+        .where(tbl_res.c.reservation_date >= today)
+    )
+    upcoming_res = db.session.execute(upcoming_res_q).mappings().all()
+    res_by_id: dict[int, dict] = {r["reservation_id"]: dict(r) for r in upcoming_res}
+
+    # --- Staff assignments (visit_id → staff info) ------------------------
+    sa_rows = db.session.execute(
+        select(
+            tbl_sa.c.visit_id,
+            tbl_staff.c.first_name,
+            tbl_staff.c.last_name,
+            tbl_staff.c.role,
+        ).join(tbl_staff, tbl_sa.c.staff_id == tbl_staff.c.staff_id)
+    ).mappings().all()
+    staff_by_visit: dict[int, dict] = {}
+    for s in sa_rows:
+        staff_by_visit[s["visit_id"]] = {
+            "staff_name": f"{s['first_name']} {s['last_name']}".strip(),
+            "staff_role": s["role"],
+        }
+
+    # --- Customers by ID --------------------------------------------------
+    cust_rows = db.session.execute(select(tbl_cust)).mappings().all()
+    cust_by_id: dict[int, str] = {
+        c["customer_id"]: f"{c['first_name']} {c['last_name']}".strip()
+        for c in cust_rows
+    }
+
+    # --- Build per-table payload ------------------------------------------
+    for trow in tables_rows:
+        t = dict(trow)
+        table_id = t["table_id"]
+        area_id = t["dining_area_id"]
+
+        entry: dict[str, Any] = {
+            "table_id": table_id,
+            "table_number": t["table_number"],
+            "capacity": t["capacity"],
+            "status": "empty",
+            "visit": None,
+            "reservation": None,
+        }
+
+        # Check if table is currently seated via any of its reservation links
+        seated = False
+        for res_id in rt_by_table.get(table_id, []):
+            if res_id in visit_by_res:
+                v = visit_by_res[res_id]
+                res_data = res_by_id.get(res_id, {})
+                customer_id = res_data.get("customer_id")
+                staff_info = staff_by_visit.get(v["visit_id"], {})
+                entry["status"] = "seated"
+                entry["visit"] = {
+                    "customer_name": cust_by_id.get(customer_id, "Unknown") if customer_id else "Walk-in",
+                    "party_size": res_data.get("party_size", 0),
+                    "arrival_time": _json_safe(v["arrival_time"]),
+                    "staff_name": staff_info.get("staff_name", "Unassigned"),
+                    "staff_role": staff_info.get("staff_role", ""),
+                }
+                seated = True
+                break
+
+        # If not seated, check for upcoming reservation
+        if not seated:
+            for res_id in rt_by_table.get(table_id, []):
+                res_data = res_by_id.get(res_id)
+                if res_data and res_data.get("status", "").lower() not in ("cancelled", "finished", "completed"):
+                    customer_id = res_data.get("customer_id")
+                    entry["status"] = "reserved"
+                    entry["reservation"] = {
+                        "reservation_id": res_id,
+                        "customer_name": cust_by_id.get(customer_id, "Unknown") if customer_id else "Unknown",
+                        "party_size": res_data.get("party_size", 0),
+                        "reservation_date": _json_safe(res_data.get("reservation_date")),
+                        "reservation_time": _json_safe(res_data.get("reservation_time")),
+                    }
+                    break
+
+        if area_id in areas_map:
+            areas_map[area_id]["tables"].append(entry)
+
+    return jsonify({"areas": list(areas_map.values())})
+
+
+@api_bp.post("/tables/<int:table_id>/assign")
+def assign_table(table_id: int):
+    body = request.get_json(silent=True) or {}
+    reservation_id = body.get("reservation_id")
+    if not reservation_id:
+        return jsonify({"error": "reservation_id is required"}), 400
+
+    try:
+        tbl_rt = Table("reservationtable", db.metadata, autoload_with=db.engine)
+        db.session.execute(
+            tbl_rt.insert().values(reservation_id=reservation_id, table_id=table_id)
+        )
+        db.session.commit()
+        return jsonify({"ok": True})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Database constraint failed. Perhaps already assigned or table doesn't exist?"}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.delete("/tables/<int:table_id>/clear")
+def clear_table(table_id: int):
+    try:
+        tbl_rt = Table("reservationtable", db.metadata, autoload_with=db.engine)
+        db.session.execute(
+            tbl_rt.delete().where(tbl_rt.c.table_id == table_id)
+        )
+        db.session.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+

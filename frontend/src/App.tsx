@@ -4,6 +4,7 @@ import { ErrorAlert } from "./components/ErrorAlert";
 import { DashboardView } from "./components/dashboard/DashboardView";
 import { ReservationSuccessBanner } from "./components/dashboard/ReservationSuccessBanner";
 import { CreateReservationView } from "./components/reservations/CreateReservationView";
+import { FloorPlan } from "./components/dashboard/FloorPlan";
 import { useReservationDashboard } from "./hooks/useReservationDashboard";
 
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
           h.setPage("create");
         }}
         onGoDashboard={() => h.setPage("dashboard")}
+        onGoFloorPlan={() => h.setPage("floorplan")}
       />
 
       <main className="mx-auto max-w-5xl px-4 py-10">
@@ -65,6 +67,8 @@ export function App() {
               onSubmit={h.createReservationFromForm}
               submitNotice={h.submitNotice}
             />
+          ) : h.page === "floorplan" ? (
+            <FloorPlan />
           ) : (
             <DashboardView
               customers={h.customers}

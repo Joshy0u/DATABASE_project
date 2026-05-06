@@ -7,6 +7,7 @@ type AppHeaderProps = {
   onRefresh: () => void;
   onGoCreate: () => void;
   onGoDashboard: () => void;
+  onGoFloorPlan: () => void;
 };
 
 export function AppHeader({
@@ -15,6 +16,7 @@ export function AppHeader({
   onRefresh,
   onGoCreate,
   onGoDashboard,
+  onGoFloorPlan,
 }: AppHeaderProps) {
   return (
     <header className="border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur">
@@ -24,16 +26,32 @@ export function AppHeader({
             React + shadcn-style + Framer Motion
           </div>
           <div className="text-lg font-semibold">
-            {page === "dashboard" ? "Reservations Dashboard" : "Create Reservation"}
+            {page === "dashboard"
+              ? "Reservations Dashboard"
+              : page === "floorplan"
+                ? "Live Floor Plan"
+                : "Create Reservation"}
           </div>
         </div>
         <div className="flex gap-2">
-          {page === "dashboard" ? (
+          {page === "dashboard" || page === "floorplan" ? (
             <>
               <Button variant="secondary" onClick={onRefresh} disabled={loading}>
                 Refresh
               </Button>
-              <Button onClick={onGoCreate}>Create Reservation</Button>
+              <Button
+                variant={page === "dashboard" ? "secondary" : "default"}
+                onClick={onGoDashboard}
+              >
+                Dashboard
+              </Button>
+              <Button
+                variant={page === "floorplan" ? "secondary" : "default"}
+                onClick={onGoFloorPlan}
+              >
+                Floor Plan
+              </Button>
+              <Button onClick={onGoCreate}>Create</Button>
             </>
           ) : (
             <Button variant="secondary" onClick={onGoDashboard}>

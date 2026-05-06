@@ -36,6 +36,7 @@ export type TableVisitInfo = {
 };
 
 export type TableReservationInfo = {
+  reservation_id?: number;
   customer_name: string;
   party_size: number;
   reservation_date: string;

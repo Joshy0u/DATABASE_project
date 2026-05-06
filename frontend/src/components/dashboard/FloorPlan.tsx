@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Plus, Minus, RotateCcw } from "lucide-react";
+import { Plus, Minus, RotateCcw, X, User, Calendar, Users } from "lucide-react";
 import { useFloorPlan } from "../../hooks/useFloorPlan";
 import { FloorPlanTooltip } from "./FloorPlanTooltip";
-import type { FloorPlanTable } from "../../types/models";
+import { assignTable, clearTable, fetchReservations, fetchCustomers } from "../../api/restaurantApi";
+import type { FloorPlanTable, Reservation, Customer } from "../../types/models";
 
 /* ── Colour tokens per status ── */
 const FILL: Record<string, string> = {
@@ -56,12 +57,14 @@ function TableShape({
   cy,
   onHover,
   onLeave,
+  onClick,
 }: {
   table: FloorPlanTable;
   cx: number;
   cy: number;
   onHover: (t: FloorPlanTable, e: React.MouseEvent) => void;
   onLeave: () => void;
+  onClick: (t: FloorPlanTable) => void;
 }) {
   const r = table.capacity <= 4 ? 28 : 34;
   const chairs = getChairPositions(table.capacity, cx, cy, r);
@@ -75,7 +78,9 @@ function TableShape({
       onMouseEnter={(e) => onHover(table, e)}
       onMouseMove={(e) => onHover(table, e)}
       onMouseLeave={onLeave}
-      className="cursor-pointer"
+      onClick={() => onClick(table)}
+      className="cursor-pointer transition-transform hover:scale-105"
+      style={{ transformOrigin: `${cx}px ${cy}px` }}
     >
       {/* Glow */}
       <circle cx={cx} cy={cy} r={r + 10} fill={glow} opacity={0.5}>
@@ -145,6 +150,7 @@ function TableShape({
 /* ── Main FloorPlan Component ── */
 export function FloorPlan() {
   const { areas, loading, error, refresh } = useFloorPlan();
+  const [selectedTable, setSelectedTable] = useState<FloorPlanTable | null>(null);
   const [tooltip, setTooltip] = useState<{
     table: FloorPlanTable;
     x: number;
@@ -154,17 +160,24 @@ export function FloorPlan() {
   
   const handleHover = useCallback(
     (t: FloorPlanTable, e: React.MouseEvent) => {
+      // Don't show tooltip if modal is open
+      if (selectedTable) return;
       if (leaveTimer.current) {
         clearTimeout(leaveTimer.current);
         leaveTimer.current = null;
       }
       setTooltip({ table: t, x: e.clientX, y: e.clientY });
     },
-    [],
+    [selectedTable],
   );
 
   const handleLeave = useCallback(() => {
     leaveTimer.current = setTimeout(() => setTooltip(null), 100);
+  }, []);
+
+  const handleClick = useCallback((t: FloorPlanTable) => {
+    setTooltip(null);
+    setSelectedTable(t);
   }, []);
 
   // Compute totals for the legend
@@ -302,6 +315,7 @@ export function FloorPlan() {
                                       cy={cy}
                                       onHover={handleHover}
                                       onLeave={handleLeave}
+                                      onClick={handleClick}
                                     />
                                   );
                                 })}
@@ -362,7 +376,179 @@ export function FloorPlan() {
         y={tooltip?.y ?? 0}
         visible={!!tooltip}
       />
+
+      <TableActionModal
+        table={selectedTable}
+        onClose={() => setSelectedTable(null)}
+        onRefresh={refresh}
+      />
     </section>
+  );
+}
+
+/* ── Table Action Modal ── */
+function TableActionModal({
+  table,
+  onClose,
+  onRefresh,
+}: {
+  table: FloorPlanTable | null;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [resData, setResData] = useState<{ res: Reservation; cust: Customer | undefined }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (table?.status === "empty") {
+      setLoading(true);
+      Promise.all([fetchReservations(50), fetchCustomers(50)])
+        .then(([r, c]) => {
+          const activeRes = r.items.filter(
+            (res) => res.status !== "cancelled" && res.status !== "completed",
+          );
+          const joined = activeRes.map((res) => ({
+            res,
+            cust: c.items.find((cust) => cust.customer_id === res.customer_id),
+          }));
+          setResData(joined);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [table]);
+
+  if (!table) return null;
+
+  async function handleAssign(resId: number) {
+    if (!table) return;
+    setSubmitting(true);
+    try {
+      await assignTable(table.table_id, resId);
+      onRefresh();
+      onClose();
+    } catch (e) {
+      alert("Failed to assign reservation.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleClear() {
+    if (!table) return;
+    setSubmitting(true);
+    try {
+      await clearTable(table.table_id);
+      onRefresh();
+      onClose();
+    } catch (e) {
+      alert("Failed to clear table.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl"
+        >
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-full p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+
+          <h3 className="mb-1 text-lg font-bold text-white">
+            Table {String(table.table_number).padStart(2, "0")} Action
+          </h3>
+          <p className="mb-6 text-sm text-zinc-400">
+            Current status: <span className="font-semibold uppercase text-zinc-300">{table.status}</span>
+          </p>
+
+          {table.status === "empty" ? (
+            <div>
+              <p className="mb-3 text-sm font-medium text-zinc-300">Assign a Reservation</p>
+              {loading ? (
+                <div className="py-8 text-center text-sm text-zinc-500">Loading reservations...</div>
+              ) : resData.length > 0 ? (
+                <div className="max-h-[300px] space-y-2 overflow-y-auto pr-2">
+                  {resData.map(({ res, cust }) => (
+                    <div
+                      key={res.reservation_id}
+                      className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 p-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 font-medium text-zinc-200">
+                          <User size={14} className="text-zinc-500" />
+                          {cust ? `${cust.first_name} ${cust.last_name}` : "Unknown"}
+                        </div>
+                        <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar size={12} /> {res.reservation_time}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users size={12} /> {res.party_size}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => res.reservation_id && handleAssign(res.reservation_id)}
+                        disabled={submitting}
+                        className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-zinc-800 p-6 text-center text-sm text-zinc-500">
+                  No unassigned upcoming reservations.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  Current Occupant
+                </div>
+                {table.visit ? (
+                  <div className="space-y-1">
+                    <p className="font-semibold text-zinc-200">{table.visit.customer_name}</p>
+                    <p className="text-sm text-zinc-400">Party of {table.visit.party_size}</p>
+                    <p className="text-xs text-zinc-500">Arrived at {table.visit.arrival_time}</p>
+                  </div>
+                ) : table.reservation ? (
+                  <div className="space-y-1">
+                    <p className="font-semibold text-zinc-200">{table.reservation.customer_name}</p>
+                    <p className="text-sm text-zinc-400">Party of {table.reservation.party_size}</p>
+                    <p className="text-xs text-zinc-500">
+                      Reserved for {table.reservation.reservation_time}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-500">Unknown occupant</p>
+                )}
+              </div>
+              <button
+                onClick={handleClear}
+                disabled={submitting}
+                className="w-full rounded-xl bg-red-500/10 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+              >
+                {submitting ? "Clearing..." : "Clear Table"}
+              </button>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </AnimatePresence>
   );
 }
 

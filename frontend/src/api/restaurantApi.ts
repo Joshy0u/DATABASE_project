@@ -35,3 +35,17 @@ export async function fetchFloorPlan() {
   return apiGet<{ areas: FloorPlanArea[] }>("/api/floorplan");
 }
 
+export async function assignTable(tableId: number, reservationId: number) {
+  return apiPost<{ ok: boolean }>(`/api/tables/${tableId}/assign`, {
+    reservation_id: reservationId,
+  });
+}
+
+export async function clearTable(tableId: number) {
+  const res = await fetch(`/api/tables/${tableId}/clear`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`Failed to clear table: ${res.statusText}`);
+  }
+  return res.json();
+}
+

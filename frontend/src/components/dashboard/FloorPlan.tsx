@@ -492,15 +492,23 @@ function TableActionModal({
                           <span className="flex items-center gap-1">
                             <Calendar size={12} /> {res.reservation_time}
                           </span>
-                          <span className="flex items-center gap-1">
+                          <span 
+                            className={`flex items-center gap-1 ${res.party_size > table.capacity ? 'text-red-400' : ''}`}
+                            title={res.party_size > table.capacity ? `Party of ${res.party_size} exceeds table capacity of ${table.capacity}` : undefined}
+                          >
                             <Users size={12} /> {res.party_size}
                           </span>
                         </div>
                       </div>
                       <button
                         onClick={() => res.reservation_id && handleAssign(res.reservation_id)}
-                        disabled={submitting}
-                        className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+                        disabled={submitting || res.party_size > table.capacity}
+                        title={res.party_size > table.capacity ? `Table capacity (${table.capacity}) exceeded` : undefined}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50 ${
+                          res.party_size > table.capacity 
+                            ? "bg-zinc-800 cursor-not-allowed" 
+                            : "bg-zinc-800 hover:bg-emerald-600"
+                        }`}
                       >
                         Assign
                       </button>

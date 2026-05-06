@@ -31,6 +31,37 @@ export async function createReservation(payload: {
   );
 }
 
+export async function deleteReservation(reservationId: number) {
+  const res = await fetch(`/api/reservations/${reservationId}`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`Failed to delete reservation: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function updateReservation(
+  reservationId: number,
+  payload: Partial<{
+    reservation_date: string;
+    reservation_time: string;
+    party_size: number;
+    status: string;
+    customer_id: number;
+  }>
+) {
+  const res = await fetch(`/api/reservations/${reservationId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update reservation: ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export async function fetchFloorPlan() {
   return apiGet<{ areas: FloorPlanArea[] }>("/api/floorplan");
 }

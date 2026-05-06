@@ -171,6 +171,76 @@ def create_reservation():
         return jsonify({"error": msg.reservation_error(str(exc))}), 500
 
 
+@api_bp.delete("/reservations/<int:reservation_id>")
+def delete_reservation(reservation_id: int):
+    reservation = _get_table("reservation")
+    try:
+        # Check if exists
+        exists = db.session.execute(
+            select(reservation).where(reservation.c.reservation_id == reservation_id)
+        ).first()
+        
+        if not exists:
+            return jsonify({"error": "Reservation not found"}), 404
+
+        # Manually cascade delete/nullify just in case ON DELETE CASCADE is missing
+        try:
+            tbl_rt = _get_table("reservationtable")
+            db.session.execute(tbl_rt.delete().where(tbl_rt.c.reservation_id == reservation_id))
+        except Exception:
+            pass
+
+        try:
+            tbl_visit = _get_table("visit")
+            db.session.execute(
+                tbl_visit.update()
+                .where(tbl_visit.c.reservation_id == reservation_id)
+                .values(reservation_id=None)
+            )
+        except Exception:
+            pass
+            
+        db.session.execute(
+            reservation.delete().where(reservation.c.reservation_id == reservation_id)
+        )
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Reservation deleted successfully"})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 500
+
+
+@api_bp.patch("/reservations/<int:reservation_id>")
+def update_reservation(reservation_id: int):
+    reservation = _get_table("reservation")
+    body = request.get_json(silent=True) or {}
+    
+    allowed = {"reservation_date", "reservation_time", "party_size", "status", "customer_id"}
+    payload = {k: v for k, v in body.items() if k in allowed}
+    
+    if not payload:
+        return jsonify({"error": "No valid fields to update"}), 400
+        
+    try:
+        exists = db.session.execute(
+            select(reservation).where(reservation.c.reservation_id == reservation_id)
+        ).first()
+        
+        if not exists:
+            return jsonify({"error": "Reservation not found"}), 404
+            
+        db.session.execute(
+            reservation.update()
+            .where(reservation.c.reservation_id == reservation_id)
+            .values(**payload)
+        )
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Reservation updated successfully"})
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 500
+
+
 @api_bp.get("/floorplan")
 def floorplan():
     """Return every dining table grouped by DiningArea with live status info.
@@ -307,14 +377,26 @@ def floorplan():
                 res_data = res_by_id.get(res_id)
                 if res_data and res_data.get("status", "").lower() not in ("cancelled", "finished", "completed"):
                     customer_id = res_data.get("customer_id")
-                    entry["status"] = "reserved"
-                    entry["reservation"] = {
-                        "reservation_id": res_id,
-                        "customer_name": cust_by_id.get(customer_id, "Unknown") if customer_id else "Unknown",
-                        "party_size": res_data.get("party_size", 0),
-                        "reservation_date": _json_safe(res_data.get("reservation_date")),
-                        "reservation_time": _json_safe(res_data.get("reservation_time")),
-                    }
+                    res_status = res_data.get("status", "").lower()
+                    
+                    if res_status == "seated":
+                        entry["status"] = "seated"
+                        entry["visit"] = {
+                            "customer_name": cust_by_id.get(customer_id, "Unknown") if customer_id else "Walk-in",
+                            "party_size": res_data.get("party_size", 0),
+                            "arrival_time": _json_safe(res_data.get("reservation_time")),
+                            "staff_name": "Unassigned",
+                            "staff_role": "",
+                        }
+                    else:
+                        entry["status"] = "reserved"
+                        entry["reservation"] = {
+                            "reservation_id": res_id,
+                            "customer_name": cust_by_id.get(customer_id, "Unknown") if customer_id else "Unknown",
+                            "party_size": res_data.get("party_size", 0),
+                            "reservation_date": _json_safe(res_data.get("reservation_date")),
+                            "reservation_time": _json_safe(res_data.get("reservation_time")),
+                        }
                     break
 
         if area_id in areas_map:

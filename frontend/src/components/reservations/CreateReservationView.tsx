@@ -6,6 +6,7 @@ const field =
 
 type CreateReservationViewProps = {
   loading: boolean;
+  formMode: "create" | "edit";
   customers: Customer[];
   customerMode: CustomerMode;
   onCustomerModeChange: (mode: CustomerMode) => void;
@@ -32,6 +33,7 @@ type CreateReservationViewProps = {
 
 export function CreateReservationView({
   loading,
+  formMode,
   customers,
   customerMode,
   onCustomerModeChange,
@@ -63,7 +65,11 @@ export function CreateReservationView({
           {submitNotice.message}
         </div>
       ) : null}
-      <div className="mb-3 text-sm font-semibold text-zinc-200">Create reservation</div>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-200">
+          {formMode === "create" ? "Create reservation" : "Edit reservation"}
+        </h2>
+      </div>
       <div className="mb-3 flex gap-2">
         <Button
           variant={customerMode === "existing" ? "default" : "secondary"}
@@ -172,7 +178,7 @@ export function CreateReservationView({
       ) : null}
       <div className="mt-3">
         <Button onClick={onSubmit} disabled={loading}>
-          Submit Reservation
+          {formMode === "create" ? "Submit Reservation" : "Update Reservation"}
         </Button>
       </div>
     </section>

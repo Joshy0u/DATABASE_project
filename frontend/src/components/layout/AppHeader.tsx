@@ -22,9 +22,6 @@ export function AppHeader({
     <header className="border-b border-zinc-800/80 bg-zinc-950/60 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
         <div>
-          <div className="text-sm text-zinc-400">
-            React + shadcn-style + Framer Motion
-          </div>
           <div className="text-lg font-semibold">
             {page === "dashboard"
               ? "Reservations Dashboard"

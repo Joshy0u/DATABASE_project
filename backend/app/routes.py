@@ -11,6 +11,18 @@ from sqlalchemy.exc import NoSuchTableError
 
 from . import db
 from . import messages as msg
+from .models import (
+    Customer,
+    CustomersListResponse,
+    CustomerResponse,
+    DbCheckResponse,
+    ErrorResponse,
+    HealthResponse,
+    Reservation,
+    ReservationsListResponse,
+    ReservationResponse,
+    TableListResponse,
+)
 
 api_bp = Blueprint("api", __name__)
 
@@ -34,19 +46,19 @@ def _get_table(table_name: str) -> Table:
 
 @api_bp.get("/health")
 def health():
-    return jsonify({"ok": True})
+    response = HealthResponse(ok=True)
+    return jsonify(response.model_dump())
 
 
 @api_bp.get("/tables")
 def list_tables():
     # Lists tables visible to the connection's current schema/search_path.
     inspector = db.inspect(db.engine)
-    return jsonify(
-        {
-            "schema": "public",
-            "tables": inspector.get_table_names(schema="public"),
-        }
+    response = TableListResponse(
+        schema_name="public",
+        tables=inspector.get_table_names(schema="public"),
     )
+    return jsonify(response.model_dump(by_alias=True))
 
 
 @api_bp.get("/db-check")
@@ -57,7 +69,8 @@ def db_check():
         inspector = db.inspect(db.engine)
         tables = inspector.get_table_names(schema="public")
     except OperationalError as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        error_response = ErrorResponse(error=str(e))
+        return jsonify(error_response.model_dump()), 500
 
     counts: dict[str, int | str] = {}
     for table_name in ("customer", "reservation", "waitlistentry", "visit"):
@@ -70,13 +83,12 @@ def db_check():
         ).scalar_one()
         counts[table_name] = int(count_value)
 
-    return jsonify(
-        {
-            "ok": True,
-            "tables_visible": tables,
-            "row_counts": counts,
-        }
+    response = DbCheckResponse(
+        ok=True,
+        tables_visible=tables,
+        row_counts=counts,
     )
+    return jsonify(response.model_dump())
 
 
 @api_bp.get("/customers")
@@ -85,7 +97,9 @@ def list_customers():
     limit = min(int(request.args.get("limit", 50)), 200)
 
     rows = db.session.execute(select(customers).limit(limit)).mappings().all()
-    return jsonify({"items": [_serialize_row(dict(r)) for r in rows]})
+    items = [Customer(**_serialize_row(dict(r))) for r in rows]
+    response = CustomersListResponse(items=items)
+    return jsonify(response.model_dump())
 
 
 @api_bp.post("/customers")
@@ -97,9 +111,10 @@ def create_customer():
     payload = {k: v for k, v in body.items() if k in allowed}
 
     if not payload.get("first_name") or not payload.get("last_name"):
-        return jsonify(
-            {"error": msg.customer_error("first_name and last_name are required.")}
-        ), 400
+        error_response = ErrorResponse(
+            error=msg.customer_error("first_name and last_name are required.")
+        )
+        return jsonify(error_response.model_dump()), 400
 
     try:
         result = db.session.execute(
@@ -107,16 +122,22 @@ def create_customer():
         )
         db.session.commit()
         created = result.mappings().first()
-        item = _serialize_row(dict(created)) if created else payload
-        return jsonify({"item": item, "message": msg.CUSTOMER_SUCCESS}), 201
+        if created:
+            item = Customer(**_serialize_row(dict(created)))
+        else:
+            item = Customer(**payload)
+        response = CustomerResponse(item=item, message=msg.CUSTOMER_SUCCESS)
+        return jsonify(response.model_dump()), 201
     except IntegrityError:
         db.session.rollback()
-        return jsonify(
-            {"error": msg.customer_error("duplicate or invalid data (database constraint).")}
-        ), 400
+        error_response = ErrorResponse(
+            error=msg.customer_error("duplicate or invalid data (database constraint).")
+        )
+        return jsonify(error_response.model_dump()), 400
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": msg.customer_error(str(exc))}), 500
+        error_response = ErrorResponse(error=msg.customer_error(str(exc)))
+        return jsonify(error_response.model_dump()), 500
 
 
 @api_bp.get("/reservations")
@@ -127,7 +148,9 @@ def list_reservations():
     rows = (
         db.session.execute(select(reservation).limit(limit)).mappings().all()
     )
-    return jsonify({"items": [_serialize_row(dict(r)) for r in rows]})
+    items = [Reservation(**_serialize_row(dict(r))) for r in rows]
+    response = ReservationsListResponse(items=items)
+    return jsonify(response.model_dump())
 
 
 @api_bp.post("/reservations")
@@ -145,9 +168,10 @@ def create_reservation():
     payload = {k: v for k, v in body.items() if k in allowed}
 
     if "customer_id" not in payload:
-        return jsonify(
-            {"error": msg.reservation_error("customer_id is required.")}
-        ), 400
+        error_response = ErrorResponse(
+            error=msg.reservation_error("customer_id is required.")
+        )
+        return jsonify(error_response.model_dump()), 400
 
     try:
         result = db.session.execute(
@@ -155,18 +179,22 @@ def create_reservation():
         )
         db.session.commit()
         created = result.mappings().first()
-        item = _serialize_row(dict(created)) if created else payload
-        return jsonify({"item": item, "message": msg.RESERVATION_SUCCESS}), 201
+        if created:
+            item = Reservation(**_serialize_row(dict(created)))
+        else:
+            item = Reservation(**payload)
+        response = ReservationResponse(item=item, message=msg.RESERVATION_SUCCESS)
+        return jsonify(response.model_dump()), 201
     except IntegrityError:
         db.session.rollback()
-        return jsonify(
-            {
-                "error": msg.reservation_error(
-                    "invalid or duplicate data (database constraint)."
-                )
-            }
-        ), 400
+        error_response = ErrorResponse(
+            error=msg.reservation_error(
+                "invalid or duplicate data (database constraint)."
+            )
+        )
+        return jsonify(error_response.model_dump()), 400
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": msg.reservation_error(str(exc))}), 500
+        error_response = ErrorResponse(error=msg.reservation_error(str(exc)))
+        return jsonify(error_response.model_dump()), 500
 

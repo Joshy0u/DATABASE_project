@@ -1,7 +1,7 @@
 # Full Stack Starter (React + Flask + Supabase Postgres)
 
 This project includes:
-- `frontend`: React (Vite), shadcn-style UI setup, Framer Motion
+- `frontend`: React (Vite), shadcn-style UI setup, Framer Motions
 - `backend`: Flask REST API
 - `database`: PostgreSQL via Supabase connection string
 
@@ -59,6 +59,12 @@ Example `POST /api/reservations` body:
 ## 2) Frontend setup (React + shadcn-style + Framer Motion)
 
 From project root:
+
+Create `frontend/.env`:
+
+```env
+VITE_API_BASE=http://127.0.0.1:5000
+```
 
 ```bash
 cd frontend

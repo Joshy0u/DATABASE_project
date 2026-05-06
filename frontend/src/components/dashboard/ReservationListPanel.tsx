@@ -1,4 +1,5 @@
 import type { Reservation } from "../../types/models";
+import { formatMilitaryTime } from "../../lib/utils";
 
 type ReservationListPanelProps = {
   reservations: Reservation[];
@@ -22,7 +23,7 @@ export function ReservationListPanel({
             className="rounded-lg border border-zinc-800/80 bg-zinc-900/30 px-3 py-2"
           >
             <div className="text-sm text-zinc-100">
-              {r.reservation_date} {r.reservation_time} • party {r.party_size}
+              {r.reservation_date} {formatMilitaryTime(r.reservation_time)} • party {r.party_size}
             </div>
             <div className="text-xs text-zinc-500">
               customer_id={r.customer_id}

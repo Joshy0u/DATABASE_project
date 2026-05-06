@@ -205,7 +205,6 @@ export function App() {
           h.setPage("create");
         }}
         onGoDashboard={() => h.setPage("dashboard")}
-        onGoFloorPlan={() => h.setPage("floorplan")}
       />
 
       <main className="mx-auto max-w-6xl px-4 py-10">

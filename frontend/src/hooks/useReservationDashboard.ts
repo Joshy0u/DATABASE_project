@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createCustomer,
   createReservation,
+  deleteReservation,
+  updateReservation,
   fetchCustomers,
   fetchReservations,
 } from "../api/restaurantApi";
@@ -21,6 +23,8 @@ export function useReservationDashboard() {
 
   const [page, setPage] = useState<AppPage>("dashboard");
   const [customerMode, setCustomerMode] = useState<CustomerMode>("existing");
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [editReservationId, setEditReservationId] = useState<number | null>(null);
 
   const firstCustomerId = useMemo(() => customers[0]?.customer_id, [customers]);
   const [formCustomerId, setFormCustomerId] = useState<number | "">("");
@@ -82,18 +86,31 @@ export function useReservationDashboard() {
         finalCustomerId = Number(formCustomerId || firstCustomerId);
       }
 
-      const reservationResponse = await createReservation({
-        reservation_date: formDate,
-        reservation_time: `${formTime}:00`,
-        party_size: formPartySize,
-        status: formStatus,
-        customer_id: finalCustomerId,
-      });
+      let message = "";
+      if (formMode === "create") {
+        const reservationResponse = await createReservation({
+          reservation_date: formDate,
+          reservation_time: `${formTime}:00`,
+          party_size: formPartySize,
+          status: formStatus,
+          customer_id: finalCustomerId,
+        });
+        message = reservationResponse.message ?? "";
+      } else if (formMode === "edit" && editReservationId) {
+        const reservationResponse = await updateReservation(editReservationId, {
+          reservation_date: formDate,
+          reservation_time: `${formTime}:00`,
+          party_size: formPartySize,
+          status: formStatus,
+          customer_id: finalCustomerId,
+        });
+        message = reservationResponse.message ?? "";
+      }
 
       await refresh();
       setSubmitNotice({
         kind: "success",
-        message: reservationResponse.message ?? "",
+        message,
       });
       setPage("dashboard");
     } catch (e) {
@@ -104,6 +121,8 @@ export function useReservationDashboard() {
     }
   }, [
     customerMode,
+    formMode,
+    editReservationId,
     formCustomerId,
     firstCustomerId,
     newFirstName,
@@ -117,9 +136,74 @@ export function useReservationDashboard() {
     refresh,
   ]);
 
+  const deleteReservationById = useCallback(async (reservationId: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteReservation(reservationId);
+      await refresh();
+      setSubmitNotice({
+        kind: "success",
+        message: "Reservation removed successfully",
+      });
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "An unknown error occurred while deleting.";
+      setSubmitNotice({ kind: "error", message });
+      setLoading(false);
+    }
+  }, [refresh]);
+
+  const updateReservationStatusById = useCallback(async (reservationId: number, status: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await updateReservation(reservationId, { status });
+      await refresh();
+      setSubmitNotice({
+        kind: "success",
+        message: "Reservation status updated",
+      });
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "An unknown error occurred while updating status.";
+      setSubmitNotice({ kind: "error", message });
+      setLoading(false);
+    }
+  }, [refresh]);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const startEditReservation = useCallback(
+    (reservation: Reservation) => {
+      setFormMode("edit");
+      setEditReservationId(reservation.reservation_id);
+      setFormCustomerId(reservation.customer_id);
+      setCustomerMode("existing");
+      setFormDate(reservation.reservation_date || "");
+      // Handle "HH:MM:SS" time formats if present
+      setFormTime(reservation.reservation_time?.slice(0, 5) || "18:30");
+      setFormPartySize(reservation.party_size || 2);
+      setFormStatus(reservation.status || "booked");
+      clearReservationSubmitNotice();
+      setPage("create");
+    },
+    [clearReservationSubmitNotice]
+  );
+
+  const resetFormToCreate = useCallback(() => {
+    setFormMode("create");
+    setEditReservationId(null);
+    setFormDate(new Date().toISOString().slice(0, 10));
+    setFormTime("18:30");
+    setFormPartySize(2);
+    setFormStatus("booked");
+    setCustomerMode("existing");
+    clearReservationSubmitNotice();
+    setPage("create");
+  }, [clearReservationSubmitNotice]);
 
   return {
     page,
@@ -129,6 +213,8 @@ export function useReservationDashboard() {
     customers,
     reservations,
     refresh,
+    formMode,
+    editReservationId,
     customerMode,
     setCustomerMode,
     formCustomerId,
@@ -150,6 +236,10 @@ export function useReservationDashboard() {
     newEmail,
     setNewEmail,
     createReservationFromForm,
+    deleteReservationById,
+    updateReservationStatusById,
+    startEditReservation,
+    resetFormToCreate,
     submitNotice,
     clearReservationSubmitNotice,
   };

@@ -15,7 +15,7 @@ export type Reservation = {
   customer_id: number;
 };
 
-export type AppPage = "dashboard" | "create";
+export type AppPage = "dashboard" | "create" | "floorplan";
 
 export type CustomerMode = "existing" | "new";
 
@@ -24,3 +24,37 @@ export type ReservationSubmitNotice =
   | null
   | { kind: "success"; message: string }
   | { kind: "error"; message: string };
+
+/* ── Floor Plan types ── */
+
+export type TableVisitInfo = {
+  customer_name: string;
+  party_size: number;
+  arrival_time: string;
+  staff_name: string;
+  staff_role: string;
+};
+
+export type TableReservationInfo = {
+  reservation_id?: number;
+  customer_name: string;
+  party_size: number;
+  reservation_date: string;
+  reservation_time: string;
+};
+
+export type FloorPlanTable = {
+  table_id: number;
+  table_number: number;
+  capacity: number;
+  status: "empty" | "seated" | "reserved";
+  visit: TableVisitInfo | null;
+  reservation: TableReservationInfo | null;
+};
+
+export type FloorPlanArea = {
+  area_id: number;
+  area_name: string;
+  tables: FloorPlanTable[];
+};
+

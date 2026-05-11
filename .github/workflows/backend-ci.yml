@@ -28,7 +28,7 @@ jobs:
       - name: Build backend Docker image (SHA+Latest)
         run: |
           docker build \
-            -t backend:${IMAGE_TAG} \ 
+            -t backend:${IMAGE_TAG} \
             -t backend:latest \
             ./backend
 

@@ -27,11 +27,8 @@ jobs:
 
       - name: Build backend Docker image (SHA+Latest)
         run: |
-          docker build \
-            -t backend:${IMAGE_TAG} \
-            -t backend:latest \
-            ./backend
+          docker build -t backend:${IMAGE_TAG} -t backend:latest ./backend
 
       - name: Verify image exists
         run: |
-          docker images | grep backend-ci
+          docker images | grep backend

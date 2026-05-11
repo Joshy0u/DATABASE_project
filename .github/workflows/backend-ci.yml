@@ -1,4 +1,4 @@
-name: Backend Copyright (c) 2026 
+name: Backend Docker CI 
 
 on:
   push:
@@ -8,30 +8,22 @@ on:
     paths:
       - "backend/**"
 
+# changing from code verification to docker build verification
 jobs: 
-  test-backend:
+  build-docker:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with: 
-          python-version: "3.11"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install dependencies
-        working-directory: backend
+      - name: Build backend Docker image
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          docker build -t backend-ci ./backend
 
-      - name: Run basic import test 
-        working-directory: backend
+      - name: Verify image exists
         run: |
-          python -c "import app"
-
-
-
-  
+          docker images | grep backend-ci

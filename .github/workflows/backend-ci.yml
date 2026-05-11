@@ -9,6 +9,7 @@ on:
       - "backend/**"
 
 # changing from code verification to docker build verification
+# now changing from no tagging, to github tagging for tracability
 jobs: 
   build-docker:
     runs-on: ubuntu-latest
@@ -20,9 +21,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend Docker image
+      - name: Set image tag via GIT SHA
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+
+      - name: Build backend Docker image (SHA+Latest)
         run: |
-          docker build -t backend-ci ./backend
+          docker build \
+            -t backend:${IMAGE_TAG} \ 
+            -t backend:latest \
+            ./backend
 
       - name: Verify image exists
         run: |

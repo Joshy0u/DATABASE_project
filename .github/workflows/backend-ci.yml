@@ -35,4 +35,5 @@ jobs:
       
       - name: Push to DOCKER HUB 
         run: |
-          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.NAME }}" --password-stdin
+          docker push ${{ secrets.NAME }}/backend:${IMAGE_TAG}
+          docker push ${{ secrets.NAME }}/backend:latest

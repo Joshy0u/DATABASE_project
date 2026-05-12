@@ -32,3 +32,7 @@ jobs:
       - name: Verify image exists
         run: |
           docker images | grep backend
+      
+      - name: Push to DOCKER HUB 
+        run: |
+          run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.NAME }}" --password-stdin

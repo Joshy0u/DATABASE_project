@@ -27,7 +27,10 @@ jobs:
 
       - name: Build backend Docker image (SHA+Latest)
         run: |
-          docker build -t backend:${IMAGE_TAG} -t backend:latest ./backend
+          docker build \
+          -t ${{ secrets.NAME }}/backend:${IMAGE_TAG} \
+          -t ${{ secrets.DOCKER_HUB_TOKEN }}/backend:latest \
+          ./backend
 
       - name: Verify image exists
         run: |

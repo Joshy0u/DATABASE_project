@@ -14,3 +14,6 @@ linking build to push (should be correct this time)
 (pointing to right repository)
 (readded login step, this is 7 pushes with silly mistakes, if i take time
 i could have done this better and quicker)
+
+
+POINTING TO NEW CONTAINER REGISTRY, lets see if both of them show in the registry, if so then we have successsed

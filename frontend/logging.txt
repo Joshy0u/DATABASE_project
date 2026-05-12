@@ -3,3 +3,4 @@ This is the start of frontend CI STEP logging.
 5/12/26: Building and trying to package the docker image for frontend, logging will start here, and hopefully, it wont take 6 attempts to get a working repository, also lets see if pointing to a new repo will do the same, or if theres anything i needa change.
 
 v2: fixed the error in Set image tag via GIT SHA
+v3: fix the echo

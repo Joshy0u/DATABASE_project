@@ -1,12 +1,13 @@
-name: Backend Docker CI 
+#copied from backendyml file.
+name: Frontend Docker CI 
 
 on:
   push:
     paths:
-      - "backend/**"
+      - "frontend/**"
   pull_request:
     paths:
-      - "backend/**"
+      - "frontend/**"
 
 # changing from code verification to docker build verification
 # now changing from no tagging, to github tagging for tracability
@@ -22,22 +23,22 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Set image tag via GIT SHA
-        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+        run: :echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: LOGIN DOCKERHUB
         run: |
           echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.NAME }}" --password-stdin
       
-      - name: Build backend Docker image (Backend+SHA)
+      - name: Build frontend Docker image (Frontend+SHA)
         run: |
           docker build \
-          -t ${{ secrets.NAME }}/databaseproject:backend-${IMAGE_TAG} \
-          ./backend
+          -t ${{ secrets.NAME }}/databaseproject:frontend-${IMAGE_TAG} \
+          ./frontend
 
       - name: Verify image exists
         run: |
-          docker images | grep backend
+          docker images | grep frontend
       
       - name: Push to DOCKER HUB 
         run: |
-          docker push ${{ secrets.NAME }}/databaseproject:backend-${IMAGE_TAG}
+          docker push ${{ secrets.NAME }}/databaseproject:frontend-${IMAGE_TAG}

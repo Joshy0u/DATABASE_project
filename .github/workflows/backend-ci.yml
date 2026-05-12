@@ -28,8 +28,8 @@ jobs:
       - name: Build backend Docker image (SHA+Latest)
         run: |
           docker build \
-          -t ${{ secrets.NAME }}/backend:${IMAGE_TAG} \
-          -t ${{ secrets.DOCKER_HUB_TOKEN }}/backend:latest \
+          -t ${{ secrets.NAME }}/backend_databaseproject:${IMAGE_TAG} \
+          -t ${{ secrets.NAME }}/backend_databaseproject:latest \
           ./backend
 
       - name: Verify image exists
@@ -38,5 +38,5 @@ jobs:
       
       - name: Push to DOCKER HUB 
         run: |
-          docker push ${{ secrets.NAME }}/backend:${IMAGE_TAG}
-          docker push ${{ secrets.NAME }}/backend:latest
+          docker push ${{ secrets.NAME }}/backend_databaseproject:${IMAGE_TAG}
+          docker push ${{ secrets.NAME }}/backend_databaseproject:latest

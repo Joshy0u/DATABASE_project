@@ -35,4 +35,4 @@ jobs:
       
       - name: Push to DOCKER HUB 
         run: |
-          run: echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.NAME }}" --password-stdin
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.NAME }}" --password-stdin

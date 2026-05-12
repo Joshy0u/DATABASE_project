@@ -24,7 +24,10 @@ jobs:
       - name: Set image tag via GIT SHA
         run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-
+      - name: LOGIN DOCKERHUB
+        run: |
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.NAME }}" --password-stdin
+      
       - name: Build backend Docker image (SHA+Latest)
         run: |
           docker build \

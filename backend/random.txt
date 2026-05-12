@@ -12,3 +12,5 @@ take2
 take3(ignorelogin, just do push step to see what happens)
 linking build to push (should be correct this time)
 (pointing to right repository)
+(readded login step, this is 7 pushes with silly mistakes, if i take time
+i could have done this better and quicker)

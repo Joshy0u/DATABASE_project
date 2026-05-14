@@ -45,7 +45,7 @@ jobs:
       - name: Checkout Infrastructure repo 
         uses: actions/checkout@v4 
         with:
-          repository: Joshy0u/k8s-infrastructure-repo
+          repository: Joshy0u/k8s-infrastructure
           token: ${{ secrets.INFRA_REPO_PAT }}
           path: infra-repo 
 

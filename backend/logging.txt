@@ -19,3 +19,4 @@ i could have done this better and quicker)
 POINTING TO NEW CONTAINER REGISTRY, lets see if both of them show in the registry, if so then we have successsed
 
 5/14/26: connecting the CI to the CD (take 1)
+connecting the CI to the CD (take 2)

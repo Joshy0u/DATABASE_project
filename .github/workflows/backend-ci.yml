@@ -41,3 +41,24 @@ jobs:
       - name: Push to DOCKER HUB 
         run: |
           docker push ${{ secrets.NAME }}/databaseproject:backend-${IMAGE_TAG}
+
+      - name: Checkout Infrastructure repo 
+        uses: actions/checkout@v4 
+        with:
+          repository: Joshy0u/k8s-infrastructure-repo
+          token: ${{ secrets.INFRA_REPO_PAT }}
+          path: infra-repo 
+
+      - name: Update Image Tag in Infrastructure repo
+        run: |
+          cd infra-repo 
+          #find, and update step below:
+          sed -i "s|image: ${{ secrets.NAME }}/databaseproject:backend-.*|image: ${{ secrets.NAME }}/databaseproject:backend-${IMAGE_TAG}|g" manifests/backend/deployment.yaml
+
+          git config --global user.name "GitOps Bot" 
+          git config --global user.email "gitops-bot@users.noreply.github.com"
+
+          #commit and push
+          git add manifests/backend/deployment.yaml
+          git commit -m "chore: update backend image to backend-${IMAGE_TAG}"
+          git push origin main 

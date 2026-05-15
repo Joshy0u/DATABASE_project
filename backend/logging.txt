@@ -20,3 +20,6 @@ POINTING TO NEW CONTAINER REGISTRY, lets see if both of them show in the registr
 
 5/14/26: connecting the CI to the CD (take 1)
 connecting the CI to the CD (take 2)
+
+
+EXAMPLE FOR VINH TO START PIPELINE

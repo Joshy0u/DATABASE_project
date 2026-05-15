@@ -23,3 +23,4 @@ connecting the CI to the CD (take 2)
 
 
 EXAMPLE FOR VINH TO START PIPELINE
+HERE WE GO
